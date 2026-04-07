@@ -77,6 +77,11 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   .controls button.active { background: var(--blue); border-color: var(--blue); }
   .controls button:hover { border-color: var(--blue); }
   .refresh-info { color: var(--dim); font-size: 0.78em; margin-left: 8px; }
+  .controls input[type="datetime-local"] { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 5px 10px; border-radius: 6px; font-size: 0.82em; }
+  .controls input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+  .controls select { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 0.82em; cursor: pointer; }
+  .controls .sep { color: var(--dim); font-size: 0.8em; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
 
   /* Target cards grid */
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -141,6 +146,24 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   <button onclick="setRange(7)" id="btn-7d">7D</button>
   <span class="refresh-info">Auto-refresh: 60s</span>
 </div>
+<div class="filter-row">
+  <span class="sep">From</span>
+  <input type="datetime-local" id="filterFrom" onchange="applyCustomFilter()">
+  <span class="sep">To</span>
+  <input type="datetime-local" id="filterTo" onchange="applyCustomFilter()">
+  <button class="controls" onclick="clearCustomFilter()" style="background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 14px;border-radius:6px;font-size:0.82em;cursor:pointer;">Clear</button>
+  <span class="sep">|</span>
+  <span class="sep">Target</span>
+  <select id="filterTarget" onchange="applyTargetFilter()">
+    <option value="">All Targets</option>
+  </select>
+  <span class="sep">Type</span>
+  <select id="filterType" onchange="applyTargetFilter()">
+    <option value="">All Types</option>
+    <option value="tcp">TCP</option>
+    <option value="ping">Ping</option>
+  </select>
+</div>
 
 <!-- Per-target cards -->
 <div class="grid" id="cards"></div>
@@ -179,7 +202,9 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <script>
 const COLORS = ['#22c55e','#3b82f6','#a855f7','#f97316','#ec4899','#06b6d4','#eab308','#ef4444','#14b8a6','#f43f5e'];
 let currentRange = 1;
+let rawData = [];
 let allData = [];
+let customFilterActive = false;
 let uptimeChartInstance = null;
 let latencyChartInstance = null;
 let cardCharts = {};
@@ -215,6 +240,9 @@ const chartDefaults = {
 
 function setRange(days) {
   currentRange = days;
+  customFilterActive = false;
+  document.getElementById('filterFrom').value = '';
+  document.getElementById('filterTo').value = '';
   document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
   const labels = {0.0417:'1h', 0.25:'6h', 1:'1d', 3:'3d', 7:'7d'};
   const btn = document.getElementById('btn-' + labels[days]);
@@ -222,10 +250,76 @@ function setRange(days) {
   fetchData();
 }
 
+function applyCustomFilter() {
+  const from = document.getElementById('filterFrom').value;
+  const to = document.getElementById('filterTo').value;
+  if (!from && !to) return;
+  customFilterActive = true;
+  // Deactivate preset buttons
+  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+  // Fetch enough data to cover the range, then filter client-side
+  const days = 7; // fetch max range, filter locally
+  currentRange = days;
+  fetchData();
+}
+
+function clearCustomFilter() {
+  customFilterActive = false;
+  document.getElementById('filterFrom').value = '';
+  document.getElementById('filterTo').value = '';
+  document.getElementById('filterTarget').value = '';
+  document.getElementById('filterType').value = '';
+  setRange(1);
+}
+
+function applyTargetFilter() {
+  applyFilters();
+  render();
+}
+
+function applyFilters() {
+  let data = [...rawData];
+
+  // Custom time filter
+  if (customFilterActive) {
+    const from = document.getElementById('filterFrom').value;
+    const to = document.getElementById('filterTo').value;
+    if (from) {
+      const fromStr = from.replace('T', ' ').substring(0, 16);
+      data = data.filter(d => d.timestamp >= fromStr);
+    }
+    if (to) {
+      const toStr = to.replace('T', ' ').substring(0, 16);
+      data = data.filter(d => d.timestamp <= toStr);
+    }
+  }
+
+  // Target filter
+  const targetFilter = document.getElementById('filterTarget').value;
+  if (targetFilter) {
+    data = data.filter(d => d.name === targetFilter);
+  }
+
+  // Type filter
+  const typeFilter = document.getElementById('filterType').value;
+  if (typeFilter) {
+    data = data.filter(d => (d.type || 'tcp') === typeFilter);
+  }
+
+  allData = data;
+}
+
 async function fetchData() {
   try {
     const r = await fetch('/api/data?days=' + currentRange);
-    allData = await r.json();
+    rawData = await r.json();
+    // Populate target dropdown
+    const targetSelect = document.getElementById('filterTarget');
+    const currentVal = targetSelect.value;
+    const names = [...new Set(rawData.map(d => d.name))].sort();
+    targetSelect.innerHTML = '<option value="">All Targets</option>' +
+      names.map(n => `<option value="${n}"${n===currentVal?' selected':''}>${n}</option>`).join('');
+    applyFilters();
     render();
   } catch(e) { console.error(e); }
 }
