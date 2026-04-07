@@ -9,9 +9,12 @@ import json
 import os
 import sys
 import socket
+import subprocess
 import time
 import csv
 import glob
+import re
+import platform
 from datetime import datetime, timedelta
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -19,7 +22,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_FILE = SCRIPT_DIR / "config.json"
 
-CSV_FIELDS = ["timestamp", "name", "host", "port", "checks", "successes", "pct", "avg_latency_ms"]
+CSV_FIELDS = ["timestamp", "name", "host", "port", "type", "checks", "successes", "pct", "avg_latency_ms"]
 
 
 def load_config():
@@ -40,13 +43,42 @@ def check_tcp(host, port, timeout):
         return False, 0.0
 
 
+def check_ping(host, timeout):
+    """Send a single ICMP ping. Returns (success, latency_ms)."""
+    try:
+        param = "-n" if platform.system().lower() == "windows" else "-c"
+        timeout_flag = "-w" if platform.system().lower() == "windows" else "-W"
+        timeout_val = str(int(timeout * 1000)) if platform.system().lower() == "windows" else str(timeout)
+        cmd = ["ping", param, "1", timeout_flag, timeout_val, host]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 2)
+        if result.returncode == 0:
+            # Extract latency: try per-packet "time=X ms", then summary "min/avg/max"
+            match = re.search(r"time[=<]\s*([\d.]+)\s*ms", result.stdout)
+            if not match:
+                match = re.search(r"[\d.]+/([\d.]+)/[\d.]+/[\d.]+ ms", result.stdout)
+            latency = float(match.group(1)) if match else 0.0
+            return True, round(latency, 2)
+        return False, 0.0
+    except (subprocess.TimeoutExpired, OSError, ValueError):
+        return False, 0.0
+
+
+def check_single(target, timeout):
+    """Run a single check based on target type. Returns (success, latency_ms)."""
+    check_type = target.get("type", "tcp")
+    if check_type == "ping":
+        return check_ping(target["host"], timeout)
+    else:
+        return check_tcp(target["host"], target["port"], timeout)
+
+
 def check_target(target, count, timeout):
     """Run `count` checks against a target, spaced evenly within ~55 seconds."""
     interval = 55.0 / max(count, 1)
     successes = 0
     latencies = []
     for i in range(count):
-        ok, lat = check_tcp(target["host"], target["port"], timeout)
+        ok, lat = check_single(target, timeout)
         if ok:
             successes += 1
             latencies.append(lat)
@@ -74,11 +106,13 @@ def run_checks(config):
             t = futures[f]
             successes, avg_lat = f.result()
             pct = round(successes / count * 100, 1)
+            check_type = t.get("type", "tcp")
             results.append({
                 "timestamp": ts,
                 "name": t["name"],
                 "host": t["host"],
-                "port": t["port"],
+                "port": t.get("port", ""),
+                "type": check_type,
                 "checks": count,
                 "successes": successes,
                 "pct": pct,
@@ -127,7 +161,8 @@ def main():
 
     for r in results:
         status = "OK" if r["pct"] == 100 else "DEGRADED" if r["pct"] > 0 else "DOWN"
-        print(f"  {r['name']:20s} {r['host']:20s}:{r['port']:<5d}  "
+        target_str = f"{r['host']}:{r['port']}" if r["port"] else r["host"]
+        print(f"  {r['name']:20s} {target_str:26s} [{r['type']:4s}]  "
               f"{r['successes']}/{r['checks']}  {r['pct']:5.1f}%  "
               f"{r['avg_latency_ms']:6.1f}ms  [{status}]")
 

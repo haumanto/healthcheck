@@ -168,7 +168,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   <h2>Recent Checks</h2>
   <div class="scroll-table">
     <table>
-      <thead><tr><th>Time</th><th>Target</th><th>Host</th><th>Success</th><th>%</th><th>Latency</th><th>Status</th></tr></thead>
+      <thead><tr><th>Time</th><th>Target</th><th>Host</th><th>Type</th><th>Success</th><th>%</th><th>Latency</th><th>Status</th></tr></thead>
       <tbody id="logBody"></tbody>
     </table>
   </div>
@@ -319,7 +319,7 @@ function render() {
     card.className = 'card';
     card.innerHTML = `
       <div class="card-header">
-        <div><div class="card-title">${name}</div><div class="card-host">${latest.host}:${latest.port}</div></div>
+        <div><div class="card-title">${name}</div><div class="card-host">${latest.port ? latest.host+':'+latest.port : latest.host} [${latest.type || 'tcp'}]</div></div>
         <span class="badge badge-${status}">${status.charAt(0).toUpperCase()+status.slice(1)}</span>
       </div>
       <div class="card-metrics">
@@ -554,7 +554,9 @@ function renderLog() {
     const st = statusOf(p);
     const label = st.charAt(0).toUpperCase() + st.slice(1);
     const lat = r.avg_latency_ms ? parseFloat(r.avg_latency_ms).toFixed(1) + 'ms' : '--';
-    return `<tr><td>${r.timestamp}</td><td>${r.name}</td><td>${r.host}:${r.port}</td>` +
+    const hostStr = r.port ? r.host+':'+r.port : r.host;
+    const typeStr = r.type || 'tcp';
+    return `<tr><td>${r.timestamp}</td><td>${r.name}</td><td>${hostStr}</td><td>${typeStr}</td>` +
       `<td>${r.successes}/${r.checks}</td><td>${r.pct}%</td><td>${lat}</td>` +
       `<td><span class="badge badge-${st}">${label}</span></td></tr>`;
   }).join('');

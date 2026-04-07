@@ -1,6 +1,6 @@
 # Health Check Monitor
 
-TCP connection health checker with interactive web dashboard. Monitors single or multiple targets, runs configurable checks per minute, records uptime percentage and latency, auto-cleans old data.
+TCP and ICMP ping health checker with interactive web dashboard. Monitors single or multiple targets via TCP connection or ping, runs configurable checks per minute, records uptime percentage and latency, auto-cleans old data.
 
 ## Requirements
 
@@ -67,7 +67,9 @@ Edit `config.json`:
   "targets": [
     {"name": "Google DNS", "host": "8.8.8.8", "port": 53, "type": "tcp"},
     {"name": "Cloudflare DNS", "host": "1.1.1.1", "port": 53, "type": "tcp"},
-    {"name": "Google", "host": "google.com", "port": 443, "type": "tcp"}
+    {"name": "Google", "host": "google.com", "port": 443, "type": "tcp"},
+    {"name": "Google Ping", "host": "8.8.8.8", "type": "ping"},
+    {"name": "Cloudflare Ping", "host": "1.1.1.1", "type": "ping"}
   ],
   "checks_per_minute": 10,
   "timeout_seconds": 5,
@@ -83,9 +85,9 @@ Edit `config.json`:
 | `targets` | Array of targets to monitor | — |
 | `targets[].name` | Display name | — |
 | `targets[].host` | Hostname or IP | — |
-| `targets[].port` | TCP port | — |
-| `targets[].type` | Connection type (currently `tcp`) | `tcp` |
-| `checks_per_minute` | Number of TCP connection attempts per minute per target | `10` |
+| `targets[].port` | TCP port (required for `tcp` type, omit for `ping`) | — |
+| `targets[].type` | Check type: `tcp` (TCP connection) or `ping` (ICMP ping) | `tcp` |
+| `checks_per_minute` | Number of check attempts per minute per target | `10` |
 | `timeout_seconds` | TCP connection timeout | `5` |
 | `retention_days` | Auto-delete data older than N days | `7` |
 | `data_dir` | Directory for CSV data files (relative to script) | `data` |
@@ -114,7 +116,7 @@ data/
   ...
 ```
 
-CSV columns: `timestamp, name, host, port, checks, successes, pct, avg_latency_ms`
+CSV columns: `timestamp, name, host, port, type, checks, successes, pct, avg_latency_ms`
 
 Files older than `retention_days` are automatically deleted on each check run.
 

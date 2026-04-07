@@ -2,7 +2,9 @@
   "targets": [
     {"name": "Google DNS", "host": "8.8.8.8", "port": 53, "type": "tcp"},
     {"name": "Cloudflare DNS", "host": "1.1.1.1", "port": 53, "type": "tcp"},
-    {"name": "Google", "host": "google.com", "port": 443, "type": "tcp"}
+    {"name": "Google", "host": "google.com", "port": 443, "type": "tcp"},
+    {"name": "Google Ping", "host": "8.8.8.8", "type": "ping"},
+    {"name": "Cloudflare Ping", "host": "1.1.1.1", "type": "ping"}
   ],
   "checks_per_minute": 10,
   "timeout_seconds": 5,
