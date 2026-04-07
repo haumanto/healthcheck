@@ -1,0 +1,13 @@
+{
+  "targets": [
+    {"name": "Google DNS", "host": "8.8.8.8", "port": 53, "type": "tcp"},
+    {"name": "Cloudflare DNS", "host": "1.1.1.1", "port": 53, "type": "tcp"},
+    {"name": "Google", "host": "google.com", "port": 443, "type": "tcp"}
+  ],
+  "checks_per_minute": 10,
+  "timeout_seconds": 5,
+  "retention_days": 7,
+  "data_dir": "data",
+  "dashboard_host": "0.0.0.0",
+  "dashboard_port": 8111
+}
