@@ -14,15 +14,18 @@ import time
 import csv
 import glob
 import re
+import ssl
 import platform
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_FILE = SCRIPT_DIR / "config.json"
 
-CSV_FIELDS = ["timestamp", "name", "host", "port", "type", "checks", "successes", "pct", "avg_latency_ms"]
+CSV_FIELDS = ["timestamp", "name", "host", "port", "type", "checks", "successes", "pct", "avg_latency_ms", "http_status"]
 
 
 def load_config():
@@ -63,13 +66,55 @@ def check_ping(host, timeout):
         return False, 0.0
 
 
+def check_http(url, timeout, method="GET", headers=None, expected_status=None, body=None):
+    """Check an HTTP/HTTPS endpoint. Returns (success, latency_ms, status_code)."""
+    try:
+        req = Request(url, method=method)
+        req.add_header("User-Agent", "HealthCheck/1.0")
+        if headers:
+            for k, v in headers.items():
+                req.add_header(k, v)
+        data = body.encode() if body else None
+        ctx = ssl.create_default_context()
+        start = time.monotonic()
+        resp = urlopen(req, data=data, timeout=timeout, context=ctx)
+        latency = (time.monotonic() - start) * 1000
+        status = resp.getcode()
+        resp.close()
+        # Determine success: match expected_status or accept 2xx
+        if expected_status:
+            ok = status in expected_status
+        else:
+            ok = 200 <= status < 400
+        return ok, round(latency, 2), status
+    except HTTPError as e:
+        latency = 0.0
+        status = e.code
+        if expected_status:
+            ok = status in expected_status
+        else:
+            ok = False
+        return ok, latency, status
+    except (URLError, OSError, socket.timeout, ValueError):
+        return False, 0.0, 0
+
+
 def check_single(target, timeout):
-    """Run a single check based on target type. Returns (success, latency_ms)."""
+    """Run a single check based on target type. Returns (success, latency_ms, http_status)."""
     check_type = target.get("type", "tcp")
     if check_type == "ping":
-        return check_ping(target["host"], timeout)
+        ok, lat = check_ping(target["host"], timeout)
+        return ok, lat, 0
+    elif check_type == "http":
+        url = target.get("url", f"http://{target['host']}")
+        method = target.get("method", "GET")
+        headers = target.get("headers")
+        expected = target.get("expected_status")
+        body = target.get("body")
+        return check_http(url, timeout, method, headers, expected, body)
     else:
-        return check_tcp(target["host"], target["port"], timeout)
+        ok, lat = check_tcp(target["host"], target["port"], timeout)
+        return ok, lat, 0
 
 
 def check_target(target, count, timeout):
@@ -77,15 +122,18 @@ def check_target(target, count, timeout):
     interval = 55.0 / max(count, 1)
     successes = 0
     latencies = []
+    last_http_status = 0
     for i in range(count):
-        ok, lat = check_single(target, timeout)
+        ok, lat, http_status = check_single(target, timeout)
         if ok:
             successes += 1
             latencies.append(lat)
+        if http_status:
+            last_http_status = http_status
         if i < count - 1:
             time.sleep(interval)
     avg_lat = round(sum(latencies) / len(latencies), 2) if latencies else 0.0
-    return successes, avg_lat
+    return successes, avg_lat, last_http_status
 
 
 def run_checks(config):
@@ -104,19 +152,20 @@ def run_checks(config):
 
         for f in as_completed(futures):
             t = futures[f]
-            successes, avg_lat = f.result()
+            successes, avg_lat, http_status = f.result()
             pct = round(successes / count * 100, 1)
             check_type = t.get("type", "tcp")
             results.append({
                 "timestamp": ts,
                 "name": t["name"],
-                "host": t["host"],
+                "host": t.get("url", t["host"]) if check_type == "http" else t["host"],
                 "port": t.get("port", ""),
                 "type": check_type,
                 "checks": count,
                 "successes": successes,
                 "pct": pct,
                 "avg_latency_ms": avg_lat,
+                "http_status": http_status if http_status else "",
             })
 
     return results
@@ -162,9 +211,10 @@ def main():
     for r in results:
         status = "OK" if r["pct"] == 100 else "DEGRADED" if r["pct"] > 0 else "DOWN"
         target_str = f"{r['host']}:{r['port']}" if r["port"] else r["host"]
-        print(f"  {r['name']:20s} {target_str:26s} [{r['type']:4s}]  "
+        http_str = f"  HTTP {r['http_status']}" if r["http_status"] else ""
+        print(f"  {r['name']:20s} {target_str:40s} [{r['type']:4s}]  "
               f"{r['successes']}/{r['checks']}  {r['pct']:5.1f}%  "
-              f"{r['avg_latency_ms']:6.1f}ms  [{status}]")
+              f"{r['avg_latency_ms']:6.1f}ms{http_str}  [{status}]")
 
 
 if __name__ == "__main__":

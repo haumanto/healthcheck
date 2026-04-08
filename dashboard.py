@@ -162,6 +162,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     <option value="">All Types</option>
     <option value="tcp">TCP</option>
     <option value="ping">Ping</option>
+    <option value="http">HTTP</option>
   </select>
 </div>
 
@@ -191,7 +192,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   <h2>Recent Checks</h2>
   <div class="scroll-table">
     <table>
-      <thead><tr><th>Time</th><th>Target</th><th>Host</th><th>Type</th><th>Success</th><th>%</th><th>Latency</th><th>Status</th></tr></thead>
+      <thead><tr><th>Time</th><th>Target</th><th>Host</th><th>Type</th><th>Success</th><th>%</th><th>Latency</th><th>HTTP</th><th>Status</th></tr></thead>
       <tbody id="logBody"></tbody>
     </table>
   </div>
@@ -650,8 +651,9 @@ function renderLog() {
     const lat = r.avg_latency_ms ? parseFloat(r.avg_latency_ms).toFixed(1) + 'ms' : '--';
     const hostStr = r.port ? r.host+':'+r.port : r.host;
     const typeStr = r.type || 'tcp';
+    const httpStatus = r.http_status ? r.http_status : '--';
     return `<tr><td>${r.timestamp}</td><td>${r.name}</td><td>${hostStr}</td><td>${typeStr}</td>` +
-      `<td>${r.successes}/${r.checks}</td><td>${r.pct}%</td><td>${lat}</td>` +
+      `<td>${r.successes}/${r.checks}</td><td>${r.pct}%</td><td>${lat}</td><td>${httpStatus}</td>` +
       `<td><span class="badge badge-${st}">${label}</span></td></tr>`;
   }).join('');
 }

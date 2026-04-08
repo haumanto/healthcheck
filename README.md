@@ -69,7 +69,9 @@ Edit `config.json`:
     {"name": "Cloudflare DNS", "host": "1.1.1.1", "port": 53, "type": "tcp"},
     {"name": "Google", "host": "google.com", "port": 443, "type": "tcp"},
     {"name": "Google Ping", "host": "8.8.8.8", "type": "ping"},
-    {"name": "Cloudflare Ping", "host": "1.1.1.1", "type": "ping"}
+    {"name": "Cloudflare Ping", "host": "1.1.1.1", "type": "ping"},
+    {"name": "GitHub API", "host": "api.github.com", "url": "https://api.github.com", "type": "http"},
+    {"name": "Google HTTP", "host": "google.com", "url": "https://www.google.com", "type": "http"}
   ],
   "checks_per_minute": 10,
   "timeout_seconds": 5,
@@ -85,14 +87,36 @@ Edit `config.json`:
 | `targets` | Array of targets to monitor | — |
 | `targets[].name` | Display name | — |
 | `targets[].host` | Hostname or IP | — |
-| `targets[].port` | TCP port (required for `tcp` type, omit for `ping`) | — |
-| `targets[].type` | Check type: `tcp` (TCP connection) or `ping` (ICMP ping) | `tcp` |
+| `targets[].port` | TCP port (required for `tcp` type, omit for `ping`/`http`) | — |
+| `targets[].type` | Check type: `tcp`, `ping`, or `http` | `tcp` |
+| `targets[].url` | Full URL for `http` type (e.g., `https://api.example.com/health`) | — |
+| `targets[].method` | HTTP method (`GET`, `POST`, `HEAD`, etc.) | `GET` |
+| `targets[].headers` | HTTP headers as key-value object | — |
+| `targets[].body` | Request body string (for POST/PUT) | — |
+| `targets[].expected_status` | List of acceptable HTTP status codes (e.g., `[200, 201]`) | `200-399` |
 | `checks_per_minute` | Number of check attempts per minute per target | `10` |
 | `timeout_seconds` | TCP connection timeout | `5` |
 | `retention_days` | Auto-delete data older than N days | `7` |
 | `data_dir` | Directory for CSV data files (relative to script) | `data` |
 | `dashboard_host` | Dashboard bind address (`0.0.0.0` = all interfaces, `127.0.0.1` = local only) | `0.0.0.0` |
 | `dashboard_port` | Dashboard HTTP port | `8111` |
+
+### HTTP/API Endpoint Examples
+
+```json
+// Basic HTTPS endpoint
+{"name": "My API", "host": "api.example.com", "url": "https://api.example.com/health", "type": "http"}
+
+// POST with headers and body
+{"name": "Auth API", "host": "auth.example.com", "url": "https://auth.example.com/login",
+ "type": "http", "method": "POST",
+ "headers": {"Content-Type": "application/json"},
+ "body": "{\"user\":\"healthcheck\"}"}
+
+// Accept specific status codes
+{"name": "Legacy API", "host": "old.example.com", "url": "https://old.example.com/status",
+ "type": "http", "expected_status": [200, 204, 301]}
+```
 
 ## Dashboard Features
 
@@ -101,8 +125,9 @@ Edit `config.json`:
 - **Combined uptime graph** — all targets overlaid with legend
 - **Latency graph** — response time trends for all targets
 - **Uptime heatmap** — GitHub-style hourly grid, colored green→red by health %
-- **Log table** — last 100 checks with status badges
+- **Log table** — last 100 checks with status badges and HTTP status codes
 - **Time range selector** — 1H, 6H, 1D, 3D, 7D
+- **Filters** — custom date/time range, target, and type (TCP/Ping/HTTP) dropdowns
 - **Auto-refresh** — updates every 60 seconds
 
 ## Data Storage
@@ -116,7 +141,7 @@ data/
   ...
 ```
 
-CSV columns: `timestamp, name, host, port, type, checks, successes, pct, avg_latency_ms`
+CSV columns: `timestamp, name, host, port, type, checks, successes, pct, avg_latency_ms, http_status`
 
 Files older than `retention_days` are automatically deleted on each check run.
 
