@@ -54,82 +54,322 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #0f1117; --card: #1a1d27; --border: #2a2d3a; --text: #e1e4ed;
-    --dim: #8b8fa3; --green: #22c55e; --yellow: #eab308; --red: #ef4444;
-    --blue: #3b82f6; --purple: #a855f7; --cyan: #06b6d4; --orange: #f97316;
-    --pink: #ec4899;
+    --bg: #09090b;
+    --card: #131316;
+    --card-hover: #18181c;
+    --border: rgba(255,255,255,0.06);
+    --text: #ececef;
+    --text-secondary: #a0a0ab;
+    --dim: #63637a;
+    --green: #22c55e;
+    --green-muted: rgba(34,197,94,0.12);
+    --yellow: #eab308;
+    --yellow-muted: rgba(234,179,8,0.12);
+    --red: #ef4444;
+    --red-muted: rgba(239,68,68,0.12);
+    --accent: #7c7c8a;
+    --ring: rgba(255,255,255,0.08);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 0 0 1px var(--border);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.4), 0 0 0 1px var(--border);
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-  h1 { font-size: 1.4em; margin-bottom: 4px; }
-  h2 { font-size: 1.05em; margin-bottom: 12px; }
-  .subtitle { color: var(--dim); font-size: 0.85em; margin-bottom: 16px; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 40px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  /* Typography */
+  h1 {
+    font-size: 1.5em;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  h2 {
+    font-size: 0.75em;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    margin-bottom: 16px;
+  }
+  .subtitle {
+    color: var(--dim);
+    font-size: 0.8em;
+    margin-bottom: 32px;
+  }
 
   /* Summary bar */
-  .summary { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-  .summary-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; flex: 1; min-width: 140px; }
-  .summary-label { font-size: 0.75em; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
-  .summary-value { font-size: 1.6em; font-weight: 700; margin-top: 2px; }
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .summary-item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.15s ease;
+  }
+  .summary-item:hover { box-shadow: var(--shadow-lg); }
+  .summary-label {
+    font-size: 0.7em;
+    font-weight: 500;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .summary-value {
+    font-size: 2em;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-secondary);
+  }
 
-  /* Controls */
-  .controls { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-  .controls button { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 6px 14px; border-radius: 6px; font-size: 0.82em; cursor: pointer; transition: all 0.15s; }
-  .controls button.active { background: var(--blue); border-color: var(--blue); }
-  .controls button:hover { border-color: var(--blue); }
-  .refresh-info { color: var(--dim); font-size: 0.78em; margin-left: 8px; }
-  .controls input[type="datetime-local"] { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 5px 10px; border-radius: 6px; font-size: 0.82em; }
-  .controls input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
-  .controls select { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 0.82em; cursor: pointer; }
-  .controls .sep { color: var(--dim); font-size: 0.8em; }
-  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  /* Toolbar */
+  .toolbar {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 32px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .toolbar-group .tbtn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    padding: 7px 14px;
+    font-size: 0.78em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-right: none;
+    letter-spacing: 0.01em;
+  }
+  .toolbar-group .tbtn:first-child { border-radius: 8px 0 0 8px; }
+  .toolbar-group .tbtn:last-child { border-radius: 0 8px 8px 0; border-right: 1px solid var(--border); }
+  .toolbar-group .tbtn:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .toolbar-group .tbtn.active {
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    border-color: rgba(255,255,255,0.12);
+  }
+  .toolbar-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .toolbar-label { font-size: 0.72em; color: var(--dim); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+  .toolbar input[type="datetime-local"],
+  .toolbar select {
+    background: rgba(255,255,255,0.04);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 0.78em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    outline: none;
+  }
+  .toolbar input[type="datetime-local"]:hover,
+  .toolbar select:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.12);
+  }
+  .toolbar input[type="datetime-local"]:focus,
+  .toolbar select:focus {
+    border-color: rgba(255,255,255,0.2);
+  }
+  .toolbar input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+  .toolbar .clear-btn {
+    background: transparent;
+    color: var(--dim);
+    border: 1px solid var(--border);
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 0.78em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .toolbar .clear-btn:hover { background: rgba(255,255,255,0.04); color: var(--text-secondary); }
+  .refresh-info { color: var(--dim); font-size: 0.7em; margin-left: auto; }
 
   /* Target cards grid */
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .card-title { font-size: 1em; font-weight: 600; }
-  .card-host { font-size: 0.78em; color: var(--dim); }
-  .badge { padding: 2px 8px; border-radius: 10px; font-size: 0.72em; font-weight: 600; }
-  .badge-ok { background: rgba(34,197,94,0.15); color: var(--green); }
-  .badge-degraded { background: rgba(234,179,8,0.15); color: var(--yellow); }
-  .badge-down { background: rgba(239,68,68,0.15); color: var(--red); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    transition: all 0.2s ease;
+  }
+  .card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-1px);
+    background: var(--card-hover);
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 0.9em; font-weight: 500; color: var(--text); }
+  .card-host { font-size: 0.72em; color: var(--dim); margin-top: 2px; font-family: var(--mono); }
+  .badge {
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 0.68em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .badge-ok { background: var(--green-muted); color: var(--green); }
+  .badge-degraded { background: var(--yellow-muted); color: var(--yellow); }
+  .badge-down { background: var(--red-muted); color: var(--red); }
 
-  .card-metrics { display: flex; align-items: center; gap: 20px; margin-bottom: 10px; }
-  .gauge-wrap { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
-  .gauge-wrap canvas { width: 80px; height: 80px; }
-  .gauge-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.1em; font-weight: 700; }
-  .metric-stats { display: flex; flex-direction: column; gap: 4px; font-size: 0.8em; color: var(--dim); }
-  .metric-stats span { display: flex; justify-content: space-between; gap: 12px; }
-  .metric-stats .val { color: var(--text); font-weight: 500; }
+  .card-metrics { display: flex; align-items: center; gap: 20px; margin-bottom: 16px; }
+  .gauge-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+  .gauge-wrap canvas { width: 72px; height: 72px; }
+  .gauge-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1em;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+  .metric-stats { display: flex; flex-direction: column; gap: 6px; font-size: 0.78em; color: var(--dim); flex: 1; }
+  .metric-stats span { display: flex; justify-content: space-between; }
+  .metric-stats .val { color: var(--text-secondary); font-weight: 500; font-family: var(--mono); font-size: 0.95em; }
 
-  .chart-container { position: relative; height: 160px; }
+  .chart-container { position: relative; height: 100px; margin-top: 4px; }
 
   /* Full-width chart sections */
-  .section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 20px; }
-  .section .chart-wide { position: relative; height: 240px; }
+  .section {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  .section .chart-wide { position: relative; height: 200px; }
 
   /* Heatmap */
-  .heatmap { margin-bottom: 20px; }
-  .heatmap-row { display: flex; align-items: center; margin-bottom: 4px; }
-  .heatmap-label { width: 140px; font-size: 0.78em; color: var(--dim); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .heatmap-cells { display: flex; gap: 2px; flex-wrap: wrap; flex: 1; }
-  .heatmap-cell { width: 14px; height: 14px; border-radius: 2px; cursor: pointer; position: relative; }
-  .heatmap-cell:hover { outline: 1px solid var(--text); }
-  .heatmap-legend { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-left: 140px; font-size: 0.72em; color: var(--dim); }
-  .heatmap-legend .swatch { width: 12px; height: 12px; border-radius: 2px; }
-  .tooltip { display: none; position: fixed; background: #252830; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 0.75em; color: var(--text); z-index: 1000; pointer-events: none; white-space: nowrap; }
+  .heatmap { margin-top: 4px; }
+  .heatmap-row { display: flex; align-items: center; margin-bottom: 6px; }
+  .heatmap-label {
+    width: 140px;
+    font-size: 0.75em;
+    color: var(--dim);
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 12px;
+  }
+  .heatmap-cells { display: flex; gap: 3px; flex-wrap: wrap; flex: 1; }
+  .heatmap-cell {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  .heatmap-cell:hover { transform: scale(1.3); }
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding-left: 140px;
+    font-size: 0.68em;
+    color: var(--dim);
+  }
+  .heatmap-legend .swatch { width: 14px; height: 14px; border-radius: 3px; }
+  .tooltip {
+    display: none;
+    position: fixed;
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.75em;
+    color: var(--text);
+    z-index: 1000;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+  }
 
   /* Log table */
-  .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.8em; }
-  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  th { color: var(--dim); font-weight: 500; position: sticky; top: 0; background: var(--card); }
-  .scroll-table { max-height: 350px; overflow-y: auto; }
+  .table-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 24px;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78em; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th {
+    color: var(--dim);
+    font-weight: 500;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    position: sticky;
+    top: 0;
+    background: var(--card);
+  }
+  td { color: var(--text-secondary); }
+  td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(8) {
+    font-family: var(--mono);
+    font-size: 0.95em;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .scroll-table { max-height: 380px; overflow-y: auto; }
 
-  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } .summary { flex-direction: column; } }
+  @media (max-width: 768px) {
+    body { padding: 16px; }
+    .grid { grid-template-columns: 1fr; }
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .toolbar-group { flex-wrap: wrap; }
+    .refresh-info { margin-left: 0; }
+  }
 </style>
 </head>
 <body>
+
+<div class="container">
 
 <h1>Health Check Dashboard</h1>
 <div class="subtitle" id="lastUpdate">Loading...</div>
@@ -137,33 +377,32 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <!-- Summary -->
 <div class="summary" id="summary"></div>
 
-<!-- Time range -->
-<div class="controls">
-  <button onclick="setRange(0.0417)" id="btn-1h">1H</button>
-  <button onclick="setRange(0.25)" id="btn-6h">6H</button>
-  <button onclick="setRange(1)" id="btn-1d" class="active">1D</button>
-  <button onclick="setRange(3)" id="btn-3d">3D</button>
-  <button onclick="setRange(7)" id="btn-7d">7D</button>
-  <span class="refresh-info">Auto-refresh: 60s</span>
-</div>
-<div class="filter-row">
-  <span class="sep">From</span>
+<!-- Toolbar -->
+<div class="toolbar">
+  <div class="toolbar-group">
+    <button class="tbtn" onclick="setRange(0.0417)" id="btn-1h">1H</button>
+    <button class="tbtn" onclick="setRange(0.25)" id="btn-6h">6H</button>
+    <button class="tbtn active" onclick="setRange(1)" id="btn-1d">1D</button>
+    <button class="tbtn" onclick="setRange(3)" id="btn-3d">3D</button>
+    <button class="tbtn" onclick="setRange(7)" id="btn-7d">7D</button>
+  </div>
+  <div class="toolbar-divider"></div>
+  <span class="toolbar-label">From</span>
   <input type="datetime-local" id="filterFrom" onchange="applyCustomFilter()">
-  <span class="sep">To</span>
+  <span class="toolbar-label">To</span>
   <input type="datetime-local" id="filterTo" onchange="applyCustomFilter()">
-  <button class="controls" onclick="clearCustomFilter()" style="background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 14px;border-radius:6px;font-size:0.82em;cursor:pointer;">Clear</button>
-  <span class="sep">|</span>
-  <span class="sep">Target</span>
+  <button class="clear-btn" onclick="clearCustomFilter()">Clear</button>
+  <div class="toolbar-divider"></div>
   <select id="filterTarget" onchange="applyTargetFilter()">
     <option value="">All Targets</option>
   </select>
-  <span class="sep">Type</span>
   <select id="filterType" onchange="applyTargetFilter()">
     <option value="">All Types</option>
     <option value="tcp">TCP</option>
     <option value="ping">Ping</option>
     <option value="http">HTTP</option>
   </select>
+  <span class="refresh-info">Auto-refresh 60s</span>
 </div>
 
 <!-- Per-target cards -->
@@ -177,13 +416,13 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 
 <!-- Latency graph -->
 <div class="section">
-  <h2>Latency (ms)</h2>
+  <h2>Latency</h2>
   <div class="chart-wide"><canvas id="latencyChart"></canvas></div>
 </div>
 
 <!-- Heatmap -->
 <div class="section">
-  <h2>Uptime Heatmap (per hour)</h2>
+  <h2>Availability Heatmap</h2>
   <div id="heatmap" class="heatmap"></div>
 </div>
 
@@ -198,10 +437,12 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   </div>
 </div>
 
+</div><!-- /container -->
+
 <div class="tooltip" id="tooltip"></div>
 
 <script>
-const COLORS = ['#22c55e','#3b82f6','#a855f7','#f97316','#ec4899','#06b6d4','#eab308','#ef4444','#14b8a6','#f43f5e'];
+const COLORS = ['#22c55e','#4ade80','#86efac','#a3e635','#a1a1aa','#71717a','#d4d4d8'];
 let currentRange = 1;
 let rawData = [];
 let allData = [];
@@ -213,28 +454,31 @@ let cardCharts = {};
 const chartDefaults = {
   responsive: true,
   maintainAspectRatio: false,
-  animation: { duration: 400 },
+  animation: { duration: 300 },
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: '#252830',
-      borderColor: '#2a2d3a',
+      backgroundColor: '#131316',
+      borderColor: 'rgba(255,255,255,0.1)',
       borderWidth: 1,
-      titleColor: '#e1e4ed',
-      bodyColor: '#8b8fa3',
-      padding: 8,
-      cornerRadius: 6,
+      titleColor: '#ececef',
+      bodyColor: '#a0a0ab',
+      padding: 10,
+      cornerRadius: 8,
       displayColors: true,
+      boxPadding: 4,
     }
   },
   scales: {
     x: {
-      ticks: { color: '#8b8fa3', maxRotation: 0, autoSkip: true, maxTicksLimit: 12, font: { size: 10 } },
-      grid: { color: 'rgba(42,45,58,0.5)', drawBorder: false },
+      ticks: { color: '#63637a', maxRotation: 0, autoSkip: true, maxTicksLimit: 10, font: { size: 10 } },
+      grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
+      border: { display: false },
     },
     y: {
-      ticks: { color: '#8b8fa3', font: { size: 10 } },
-      grid: { color: 'rgba(42,45,58,0.5)', drawBorder: false },
+      ticks: { color: '#63637a', font: { size: 10 } },
+      grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
+      border: { display: false },
     }
   }
 };
@@ -244,7 +488,7 @@ function setRange(days) {
   customFilterActive = false;
   document.getElementById('filterFrom').value = '';
   document.getElementById('filterTo').value = '';
-  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.toolbar-group .tbtn').forEach(b => b.classList.remove('active'));
   const labels = {0.0417:'1h', 0.25:'6h', 1:'1d', 3:'3d', 7:'7d'};
   const btn = document.getElementById('btn-' + labels[days]);
   if (btn) btn.classList.add('active');
@@ -256,10 +500,8 @@ function applyCustomFilter() {
   const to = document.getElementById('filterTo').value;
   if (!from && !to) return;
   customFilterActive = true;
-  // Deactivate preset buttons
-  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
-  // Fetch enough data to cover the range, then filter client-side
-  const days = 7; // fetch max range, filter locally
+  document.querySelectorAll('.toolbar-group .tbtn').forEach(b => b.classList.remove('active'));
+  const days = 7;
   currentRange = days;
   fetchData();
 }
@@ -281,7 +523,6 @@ function applyTargetFilter() {
 function applyFilters() {
   let data = [...rawData];
 
-  // Custom time filter
   if (customFilterActive) {
     const from = document.getElementById('filterFrom').value;
     const to = document.getElementById('filterTo').value;
@@ -295,17 +536,11 @@ function applyFilters() {
     }
   }
 
-  // Target filter
   const targetFilter = document.getElementById('filterTarget').value;
-  if (targetFilter) {
-    data = data.filter(d => d.name === targetFilter);
-  }
+  if (targetFilter) data = data.filter(d => d.name === targetFilter);
 
-  // Type filter
   const typeFilter = document.getElementById('filterType').value;
-  if (typeFilter) {
-    data = data.filter(d => (d.type || 'tcp') === typeFilter);
-  }
+  if (typeFilter) data = data.filter(d => (d.type || 'tcp') === typeFilter);
 
   allData = data;
 }
@@ -314,7 +549,6 @@ async function fetchData() {
   try {
     const r = await fetch('/api/data?days=' + currentRange);
     rawData = await r.json();
-    // Populate target dropdown
     const targetSelect = document.getElementById('filterTarget');
     const currentVal = targetSelect.value;
     const names = [...new Set(rawData.map(d => d.name))].sort();
@@ -336,22 +570,20 @@ function statusColor(pct) {
 function drawGauge(canvas, pct) {
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = 80 * dpr;
-  canvas.height = 80 * dpr;
+  canvas.width = 72 * dpr;
+  canvas.height = 72 * dpr;
   ctx.scale(dpr, dpr);
-  const cx = 40, cy = 40, r = 32, lw = 7;
+  const cx = 36, cy = 36, r = 28, lw = 5;
   const startAngle = 0.75 * Math.PI;
   const totalAngle = 1.5 * Math.PI;
 
-  // Background arc
   ctx.beginPath();
   ctx.arc(cx, cy, r, startAngle, startAngle + totalAngle);
-  ctx.strokeStyle = '#2a2d3a';
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
   ctx.lineWidth = lw;
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // Value arc
   if (pct > 0) {
     ctx.beginPath();
     ctx.arc(cx, cy, r, startAngle, startAngle + totalAngle * (pct / 100));
@@ -387,7 +619,7 @@ function render() {
   document.getElementById('summary').innerHTML = `
     <div class="summary-item"><div class="summary-label">Targets</div><div class="summary-value">${totalTargets}</div></div>
     <div class="summary-item"><div class="summary-label">Overall Uptime</div><div class="summary-value" style="color:${statusColor(parseFloat(overallPct))}">${overallPct}%</div></div>
-    <div class="summary-item"><div class="summary-label">Avg Latency</div><div class="summary-value" style="color:var(--blue)">${avgLat}ms</div></div>
+    <div class="summary-item"><div class="summary-label">Avg Latency</div><div class="summary-value">${avgLat}<span style="font-size:0.5em;color:var(--dim)">ms</span></div></div>
     <div class="summary-item"><div class="summary-label">Data Points</div><div class="summary-value">${totalChecks}</div></div>
   `;
 
@@ -414,7 +646,10 @@ function render() {
     card.className = 'card';
     card.innerHTML = `
       <div class="card-header">
-        <div><div class="card-title">${name}</div><div class="card-host">${latest.port ? latest.host+':'+latest.port : latest.host} [${latest.type || 'tcp'}]</div></div>
+        <div>
+          <div class="card-title">${name}</div>
+          <div class="card-host">${latest.port ? latest.host+':'+latest.port : latest.host} ${latest.type || 'tcp'}</div>
+        </div>
         <span class="badge badge-${status}">${status.charAt(0).toUpperCase()+status.slice(1)}</span>
       </div>
       <div class="card-metrics">
@@ -430,13 +665,11 @@ function render() {
     `;
     cardsEl.appendChild(card);
 
-    // Draw gauge
     drawGauge(document.getElementById('gauge-' + idx), curPct);
 
-    // Card chart: uptime line
     const labels = rows.map(r => r.timestamp.split(' ')[1] || r.timestamp);
     const values = rows.map(r => parseFloat(r.pct));
-    const color = COLORS[idx % COLORS.length];
+    const lineColor = statusColor(curPct);
 
     const ctx = document.getElementById(cardId).getContext('2d');
     cardCharts[cardId] = new Chart(ctx, {
@@ -445,20 +678,20 @@ function render() {
         labels,
         datasets: [{
           data: values,
-          borderColor: color,
-          backgroundColor: color + '20',
+          borderColor: lineColor,
+          backgroundColor: lineColor + '10',
           fill: true,
-          tension: 0.3,
+          tension: 0.4,
           pointRadius: 0,
           pointHitRadius: 8,
-          borderWidth: 2,
+          borderWidth: 1.5,
         }]
       },
       options: {
         ...chartDefaults,
         scales: {
-          ...chartDefaults.scales,
-          y: { ...chartDefaults.scales.y, min: 0, max: 100, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v + '%' } }
+          x: { ...chartDefaults.scales.x, display: false },
+          y: { ...chartDefaults.scales.y, display: false, min: 0, max: 100 }
         },
         plugins: {
           ...chartDefaults.plugins,
@@ -471,13 +704,9 @@ function render() {
     });
   });
 
-  // Combined uptime chart
   renderUptimeChart(byTarget, targetNames);
-  // Latency chart
   renderLatencyChart(byTarget, targetNames);
-  // Heatmap
   renderHeatmap(byTarget, targetNames);
-  // Log table
   renderLog();
 
   document.getElementById('lastUpdate').textContent =
@@ -492,16 +721,15 @@ function renderUptimeChart(byTarget, names) {
       label: name,
       data: rows.map(r => ({ x: r.timestamp, y: parseFloat(r.pct) })),
       borderColor: COLORS[i % COLORS.length],
-      backgroundColor: COLORS[i % COLORS.length] + '15',
+      backgroundColor: COLORS[i % COLORS.length] + '08',
       fill: false,
-      tension: 0.3,
+      tension: 0.4,
       pointRadius: 0,
       pointHitRadius: 8,
-      borderWidth: 2,
+      borderWidth: 1.5,
     };
   });
 
-  // Use the longest target's timestamps as labels
   let labels = [];
   names.forEach(n => { if (byTarget[n].length > labels.length) labels = byTarget[n].map(r => r.timestamp); });
 
@@ -513,8 +741,8 @@ function renderUptimeChart(byTarget, names) {
       ...chartDefaults,
       plugins: {
         ...chartDefaults.plugins,
-        legend: { display: true, labels: { color: '#8b8fa3', boxWidth: 12, padding: 16, font: { size: 11 } } },
-        tooltip: { ...chartDefaults.plugins.tooltip, mode: 'index', intersect: false, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%` } }
+        legend: { display: true, position: 'top', align: 'end', labels: { color: '#63637a', boxWidth: 8, boxHeight: 8, padding: 16, font: { size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: { ...chartDefaults.plugins.tooltip, mode: 'index', intersect: false, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}%` } }
       },
       scales: {
         ...chartDefaults.scales,
@@ -545,10 +773,10 @@ function renderLatencyChart(byTarget, names) {
       data: rows.map(r => parseFloat(r.avg_latency_ms || 0)),
       borderColor: COLORS[i % COLORS.length],
       fill: false,
-      tension: 0.3,
+      tension: 0.4,
       pointRadius: 0,
       pointHitRadius: 8,
-      borderWidth: 2,
+      borderWidth: 1.5,
     };
   });
 
@@ -560,8 +788,8 @@ function renderLatencyChart(byTarget, names) {
       ...chartDefaults,
       plugins: {
         ...chartDefaults.plugins,
-        legend: { display: true, labels: { color: '#8b8fa3', boxWidth: 12, padding: 16, font: { size: 11 } } },
-        tooltip: { ...chartDefaults.plugins.tooltip, mode: 'index', intersect: false, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}ms` } }
+        legend: { display: true, position: 'top', align: 'end', labels: { color: '#63637a', boxWidth: 8, boxHeight: 8, padding: 16, font: { size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: { ...chartDefaults.plugins.tooltip, mode: 'index', intersect: false, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}ms` } }
       },
       scales: {
         ...chartDefaults.scales,
@@ -579,10 +807,9 @@ function renderHeatmap(byTarget, names) {
 
   names.forEach(name => {
     const rows = byTarget[name];
-    // Group by hour
     const hourly = {};
     rows.forEach(r => {
-      const h = r.timestamp.substring(0, 13); // "YYYY-MM-DD HH"
+      const h = r.timestamp.substring(0, 13);
       if (!hourly[h]) hourly[h] = [];
       hourly[h].push(parseFloat(r.pct));
     });
@@ -598,7 +825,6 @@ function renderHeatmap(byTarget, names) {
     const cellsWrap = document.createElement('div');
     cellsWrap.className = 'heatmap-cells';
 
-    // Sort hours chronologically
     const hours = Object.keys(hourly).sort();
     hours.forEach(h => {
       const vals = hourly[h];
@@ -608,9 +834,9 @@ function renderHeatmap(byTarget, names) {
       cell.style.backgroundColor = heatColor(avg);
       cell.addEventListener('mouseenter', (e) => {
         tooltip.style.display = 'block';
-        tooltip.textContent = `${h}:00 — ${avg.toFixed(1)}% (${vals.length} checks)`;
-        tooltip.style.left = e.clientX + 10 + 'px';
-        tooltip.style.top = e.clientY - 30 + 'px';
+        tooltip.textContent = `${h}:00  ${avg.toFixed(1)}%  (${vals.length} checks)`;
+        tooltip.style.left = e.clientX + 12 + 'px';
+        tooltip.style.top = e.clientY - 36 + 'px';
       });
       cell.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
       cellsWrap.appendChild(cell);
@@ -620,7 +846,6 @@ function renderHeatmap(byTarget, names) {
     container.appendChild(row);
   });
 
-  // Legend
   const legend = document.createElement('div');
   legend.className = 'heatmap-legend';
   legend.innerHTML = '<span>0%</span>';
@@ -632,13 +857,13 @@ function renderHeatmap(byTarget, names) {
 }
 
 function heatColor(pct) {
-  if (pct >= 99.5) return '#166534';
-  if (pct >= 95) return '#22c55e';
-  if (pct >= 80) return '#86efac';
-  if (pct >= 50) return '#eab308';
-  if (pct >= 20) return '#f97316';
-  if (pct > 0) return '#ef4444';
-  return '#7f1d1d';
+  if (pct >= 99.5) return 'rgba(34,197,94,0.7)';
+  if (pct >= 95) return 'rgba(34,197,94,0.5)';
+  if (pct >= 80) return 'rgba(34,197,94,0.3)';
+  if (pct >= 50) return 'rgba(234,179,8,0.5)';
+  if (pct >= 20) return 'rgba(234,179,8,0.3)';
+  if (pct > 0) return 'rgba(239,68,68,0.5)';
+  return 'rgba(239,68,68,0.25)';
 }
 
 function renderLog() {
@@ -652,7 +877,7 @@ function renderLog() {
     const hostStr = r.port ? r.host+':'+r.port : r.host;
     const typeStr = r.type || 'tcp';
     const httpStatus = r.http_status ? r.http_status : '--';
-    return `<tr><td>${r.timestamp}</td><td>${r.name}</td><td>${hostStr}</td><td>${typeStr}</td>` +
+    return `<tr><td>${r.timestamp}</td><td>${r.name}</td><td style="font-family:var(--mono);font-size:0.92em;color:var(--dim)">${hostStr}</td><td>${typeStr}</td>` +
       `<td>${r.successes}/${r.checks}</td><td>${r.pct}%</td><td>${lat}</td><td>${httpStatus}</td>` +
       `<td><span class="badge badge-${st}">${label}</span></td></tr>`;
   }).join('');
