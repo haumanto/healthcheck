@@ -13,5 +13,35 @@
   "retention_days": 7,
   "data_dir": "data",
   "dashboard_host": "0.0.0.0",
-  "dashboard_port": 8111
+  "dashboard_port": 8111,
+  "alerts": {
+    "enabled": false,
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
+    "cooldown_minutes": 15,
+    "rules": [
+      {
+        "type": "latency",
+        "threshold_ms": 500,
+        "consecutive": 3,
+        "message": "High latency on {name}: {value}ms (threshold: {threshold}ms)"
+      },
+      {
+        "type": "uptime",
+        "threshold_pct": 95,
+        "consecutive": 2,
+        "message": "Low uptime on {name}: {value}% (threshold: {threshold}%)"
+      },
+      {
+        "type": "http_error",
+        "consecutive": 2,
+        "message": "HTTP error on {name}: status {value}"
+      },
+      {
+        "type": "down",
+        "consecutive": 1,
+        "message": "{name} is DOWN: 0% success"
+      }
+    ]
+  }
 }

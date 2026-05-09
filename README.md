@@ -100,6 +100,7 @@ Edit `config.json`:
 | `data_dir` | Directory for CSV data files (relative to script) | `data` |
 | `dashboard_host` | Dashboard bind address (`0.0.0.0` = all interfaces, `127.0.0.1` = local only) | `0.0.0.0` |
 | `dashboard_port` | Dashboard HTTP port | `8111` |
+| `alerts` | Alert notification configuration (see below) | — |
 
 ### HTTP/API Endpoint Examples
 
@@ -145,12 +146,78 @@ CSV columns: `timestamp, name, host, port, type, checks, successes, pct, avg_lat
 
 Files older than `retention_days` are automatically deleted on each check run.
 
+## Alert Notifications
+
+Send Telegram alerts when targets breach configurable thresholds.
+
+### Setup
+
+1. Create a Telegram bot via [@BotFather](https://t.me/botfather) and get your bot token
+2. Get your chat ID (message `@userinfobot` or use `@getidsbot`)
+3. Set environment variables (recommended — keeps secrets out of config):
+
+```bash
+export TELEGRAM_BOT_TOKEN="your_bot_token_here"
+export TELEGRAM_CHAT_ID="your_chat_id_here"
+```
+
+Or add to `config.json` (not recommended for public repos):
+
+```json
+{
+  "alerts": {
+    "enabled": true,
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
+    "cooldown_minutes": 15,
+    "rules": [
+      {"type": "latency", "threshold_ms": 500, "consecutive": 3, "message": "High latency on {name}: {value}ms (threshold: {threshold}ms)"},
+      {"type": "uptime", "threshold_pct": 95, "consecutive": 2, "message": "Low uptime on {name}: {value}% (threshold: {threshold}%)"},
+      {"type": "http_error", "consecutive": 2, "message": "HTTP error on {name}: status {value}"},
+      {"type": "down", "consecutive": 1, "message": "{name} is DOWN: 0% success"}
+    ]
+  }
+}
+```
+
+**Security note:** Environment variables take priority over `config.json`. Never commit real tokens to a public repository.
+
+### Alert Rule Types
+
+| Rule Type | Description | Required Fields |
+|---|---|---|
+| `latency` | Trigger when avg latency > `threshold_ms` for `consecutive` checks | `threshold_ms` |
+| `uptime` | Trigger when uptime < `threshold_pct` for `consecutive` checks | `threshold_pct` |
+| `http_error` | Trigger when HTTP status is outside expected range for `consecutive` checks | — |
+| `down` | Trigger when all checks fail (0% success) for `consecutive` checks | — |
+
+### Message Placeholders
+
+Use these in `message` templates:
+- `{name}` — target display name
+- `{host}` — target host/URL
+- `{value}` — current metric value (latency, uptime %, or HTTP status)
+- `{threshold}` — threshold value from rule config
+- `{timestamp}` — check timestamp
+
+### Cooldown
+
+After sending an alert, the same rule/target combination won't trigger again for `cooldown_minutes` (default: 15). This prevents spam when a target is consistently failing.
+
+### Cron with Alerts
+
+```bash
+# Add to crontab — alerts will fire automatically on each check run
+* * * * * cd /path/to/healthcheck && TELEGRAM_BOT_TOKEN=xxx TELEGRAM_CHAT_ID=yyy python3 healthcheck.py >> check.log 2>&1
+```
+
 ## Files
 
 | File | Purpose |
 |---|---|
 | `config.json` | Configuration |
-| `healthcheck.py` | Health check runner (measures uptime % and latency) |
+| `healthcheck.py` | Health check runner + alert evaluator |
 | `dashboard.py` | Web dashboard server |
 | `run.sh` | Convenience launcher |
 | `data/*.csv` | Daily result files |
+| `data/alerts.json` | Alert state (consecutive counts, cooldowns) |

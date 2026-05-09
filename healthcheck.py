@@ -3,6 +3,8 @@
 Health Check Monitor - checks connection percentage per minute to targets.
 Runs checks_per_minute attempts within each minute, records success % and latency.
 Results stored as CSV: timestamp, target_name, host, port, checks, successes, pct, avg_latency_ms
+
+Alert notifications via Telegram Bot API (stdlib only, no extra dependencies).
 """
 
 import json
@@ -24,6 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_FILE = SCRIPT_DIR / "config.json"
+ALERT_STATE_FILE = SCRIPT_DIR / "data" / "alerts.json"
 
 CSV_FIELDS = ["timestamp", "name", "host", "port", "type", "checks", "successes", "pct", "avg_latency_ms", "http_status"]
 
@@ -33,6 +36,150 @@ def load_config():
         cfg = json.load(f)
     cfg["data_dir"] = str(SCRIPT_DIR / cfg["data_dir"])
     return cfg
+
+
+def load_alert_state():
+    """Load persistent alert state (consecutive counts, last alert times)."""
+    if ALERT_STATE_FILE.exists():
+        try:
+            with open(ALERT_STATE_FILE) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+def save_alert_state(state):
+    """Save alert state to disk for persistence across cron runs."""
+    os.makedirs(ALERT_STATE_FILE.parent, exist_ok=True)
+    with open(ALERT_STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def send_telegram_alert(token, chat_id, message):
+    """Send a message via Telegram Bot API using stdlib only."""
+    if not token or not chat_id:
+        return False
+    try:
+        payload = json.dumps({"chat_id": chat_id, "text": message, "parse_mode": "HTML"}).encode()
+        req = Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urlopen(req, timeout=15)
+        resp.close()
+        return True
+    except Exception as e:
+        print(f"  [Alert] Failed to send Telegram message: {e}")
+        return False
+
+
+def format_alert_message(template, result, rule, threshold_value):
+    """Replace placeholders in alert message template."""
+    return template.format(
+        name=result["name"],
+        host=result.get("host", ""),
+        value=result.get("avg_latency_ms", result.get("pct", result.get("http_status", ""))),
+        threshold=threshold_value,
+        timestamp=result["timestamp"],
+    )
+
+
+def evaluate_alerts(results, config):
+    """Evaluate alert rules against check results and send notifications."""
+    alerts_cfg = config.get("alerts")
+    if not alerts_cfg or not alerts_cfg.get("enabled", False):
+        return
+
+    # Read secrets: env vars take priority over config
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", alerts_cfg.get("telegram_bot_token", ""))
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", alerts_cfg.get("telegram_chat_id", ""))
+    rules = alerts_cfg.get("rules", [])
+    cooldown_minutes = alerts_cfg.get("cooldown_minutes", 15)
+
+    if not token or not chat_id:
+        return
+
+    state = load_alert_state()
+    now = datetime.now()
+    sent_any = False
+
+    for result in results:
+        target_name = result["name"]
+        for rule in rules:
+            rule_id = f"{target_name}::{rule['type']}"
+            triggered = False
+            value = None
+            threshold = None
+
+            rule_type = rule["type"]
+            consecutive_needed = rule.get("consecutive", 1)
+
+            if rule_type == "latency":
+                threshold = rule.get("threshold_ms", 500)
+                lat = result.get("avg_latency_ms")
+                if lat and float(lat) > threshold:
+                    triggered = True
+                    value = lat
+
+            elif rule_type == "uptime":
+                threshold = rule.get("threshold_pct", 95)
+                pct = float(result.get("pct", 100))
+                if pct < threshold:
+                    triggered = True
+                    value = pct
+
+            elif rule_type == "http_error":
+                http_status = result.get("http_status")
+                if http_status:
+                    # HTTP error means status outside 200-399 or not in expected_status
+                    # For simplicity: if pct < 100 and http_status is set, consider it an HTTP error
+                    if float(result.get("pct", 100)) < 100:
+                        triggered = True
+                        value = http_status
+
+            elif rule_type == "down":
+                if float(result.get("pct", 100)) == 0:
+                    triggered = True
+                    value = 0
+
+            # Update state
+            rule_state = state.get(rule_id, {"consecutive": 0, "last_alert": None})
+
+            if triggered:
+                rule_state["consecutive"] = rule_state.get("consecutive", 0) + 1
+            else:
+                rule_state["consecutive"] = 0
+
+            # Check if we should send alert
+            should_send = (
+                triggered
+                and rule_state["consecutive"] >= consecutive_needed
+            )
+
+            if should_send:
+                # Check cooldown
+                last_alert = rule_state.get("last_alert")
+                if last_alert:
+                    last_dt = datetime.fromisoformat(last_alert)
+                    if (now - last_dt).total_seconds() < cooldown_minutes * 60:
+                        should_send = False
+
+            if should_send:
+                msg_template = rule.get("message", f"Alert: {target_name} - {rule_type}")
+                message = format_alert_message(msg_template, result, rule, threshold)
+                if send_telegram_alert(token, chat_id, message):
+                    rule_state["last_alert"] = now.isoformat()
+                    print(f"  [Alert] Sent: {target_name} - {rule_type}")
+                    sent_any = True
+                else:
+                    print(f"  [Alert] Failed to send: {target_name} - {rule_type}")
+
+            state[rule_id] = rule_state
+
+    save_alert_state(state)
 
 
 def check_tcp(host, port, timeout):
@@ -55,7 +202,6 @@ def check_ping(host, timeout):
         cmd = ["ping", param, "1", timeout_flag, timeout_val, host]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 2)
         if result.returncode == 0:
-            # Extract latency: try per-packet "time=X ms", then summary "min/avg/max"
             match = re.search(r"time[=<]\s*([\d.]+)\s*ms", result.stdout)
             if not match:
                 match = re.search(r"[\d.]+/([\d.]+)/[\d.]+/[\d.]+ ms", result.stdout)
@@ -81,7 +227,6 @@ def check_http(url, timeout, method="GET", headers=None, expected_status=None, b
         latency = (time.monotonic() - start) * 1000
         status = resp.getcode()
         resp.close()
-        # Determine success: match expected_status or accept 2xx
         if expected_status:
             ok = status in expected_status
         else:
@@ -215,6 +360,9 @@ def main():
         print(f"  {r['name']:20s} {target_str:40s} [{r['type']:4s}]  "
               f"{r['successes']}/{r['checks']}  {r['pct']:5.1f}%  "
               f"{r['avg_latency_ms']:6.1f}ms{http_str}  [{status}]")
+
+    # Evaluate alerts after checks complete
+    evaluate_alerts(results, config)
 
 
 if __name__ == "__main__":
