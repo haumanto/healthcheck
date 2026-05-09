@@ -56,38 +56,39 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-<style type="text/tailwindcss">
-  @theme {
-    --color-bg: #09090b;
-    --color-surface: #0f0f11;
-    --color-surface-hover: #131316;
-    --color-elevated: #18181b;
-    --color-border: rgba(255,255,255,0.04);
-    --color-border-hover: rgba(255,255,255,0.08);
-    --color-text: #e4e4e7;
-    --color-text-secondary: #a1a1aa;
-    --color-text-tertiary: #52525b;
-    --color-text-dim: #3f3f46;
-    --color-green: #34d399;
-    --color-green-soft: rgba(52,211,153,0.1);
-    --color-yellow: #fbbf24;
-    --color-yellow-soft: rgba(251,191,36,0.1);
-    --color-red: #f87171;
-    --color-red-soft: rgba(248,113,113,0.1);
-    --color-mono: 'JetBrains Mono', ui-monospace, monospace;
+<style>
+  :root {
+    --bg: #09090b;
+    --surface: #0f0f11;
+    --surface-hover: #131316;
+    --border: rgba(255,255,255,0.04);
+    --border-hover: rgba(255,255,255,0.08);
+    --text: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #52525b;
+    --text-dim: #3f3f46;
+    --green: #34d399;
+    --green-soft: rgba(52,211,153,0.1);
+    --yellow: #fbbf24;
+    --yellow-soft: rgba(251,191,36,0.1);
+    --red: #f87171;
+    --red-soft: rgba(248,113,113,0.1);
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   }
-</style>
-<style>
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
   body {
     font-family: var(--font-sans);
-    background: var(--color-bg);
-    color: var(--color-text);
+    background: var(--bg);
+    color: var(--text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
   .font-mono { font-family: var(--font-mono); }
+
   /* datetime-local picker icon */
   input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     filter: invert(0.5);
@@ -96,14 +97,40 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     transition: opacity 0.15s;
   }
   input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover { opacity: 0.9; }
+
   /* custom scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+
+  /* Tailwind-compatible utility classes for colors */
+  .bg-bg { background-color: var(--bg); }
+  .bg-surface { background-color: var(--surface); }
+  .bg-surface-hover { background-color: var(--surface-hover); }
+  .border-border { border-color: var(--border); }
+  .text-text { color: var(--text); }
+  .text-text-secondary { color: var(--text-secondary); }
+  .text-text-tertiary { color: var(--text-tertiary); }
+  .text-green { color: var(--green); }
+  .text-yellow { color: var(--yellow); }
+  .text-red { color: var(--red); }
+  .bg-green { background-color: var(--green); }
+  .bg-green-soft { background-color: var(--green-soft); }
+  .bg-yellow-soft { background-color: var(--yellow-soft); }
+  .bg-red-soft { background-color: var(--red-soft); }
+
+  .hover\:bg-white\/[0\.02]:hover { background-color: rgba(255,255,255,0.02); }
+  .hover\:bg-surface-hover:hover { background-color: var(--surface-hover); }
+  .group:hover .group-hover\:bg-white\/[0\.02] { background-color: rgba(255,255,255,0.02); }
+  .focus\:border-border-hover:focus { border-color: var(--border-hover); }
+  .bg-white\/[0\.06] { background-color: rgba(255,255,255,0.06); }
+  .bg-white\/[0\.02] { background-color: rgba(255,255,255,0.02); }
+  .border-white\/[0\.04] { border-color: rgba(255,255,255,0.04); }
+  .border-white\/[0\.08] { border-color: rgba(255,255,255,0.08); }
 </style>
 </head>
-<body class="min-h-screen antialiased">
+<body class="min-h-screen antialiased bg-bg">
 
 <div class="mx-auto max-w-7xl px-6 py-16 sm:px-8 lg:px-12">
 
@@ -330,7 +357,7 @@ async function fetchData() {
 
 function statusOf(p) { return p===100?'ok':p>0?'degraded':'down'; }
 function statusColor(p) { return p===100?'#34d399':p>0?'#fbbf24':'#f87171'; }
-function statusBg(st) { return st==='ok'?'bg-[rgba(52,211,153,0.1)] text-green':st==='degraded'?'bg-[rgba(251,191,36,0.1)] text-yellow':'bg-[rgba(248,113,113,0.1)] text-red'; }
+function statusBg(st) { return st==='ok'?'bg-green-soft text-green':st==='degraded'?'bg-yellow-soft text-yellow':'bg-red-soft text-red'; }
 
 function groupBy(data) { const m={}; data.forEach(d=>{if(!m[d.name])m[d.name]=[];m[d.name].push(d);}); return m; }
 
