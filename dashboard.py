@@ -267,6 +267,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     font-size: 11px;
     outline: none;
     transition: border-color 0.12s;
+    color-scheme: dark;
   }
 
   .toolbar input:focus, .toolbar select:focus { border-color: var(--border-hover); }
