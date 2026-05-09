@@ -643,7 +643,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <div class="tip" id="tooltip"></div>
 
 <script>
-const LINE_COLORS = ['#71717a','#a1a1aa','#d4d4d8','#52525b','#a3a3a3','#737373','#52525b'];
+const LINE_COLORS = ['#34d399','#60a5fa','#f472b6','#fbbf24','#a78bfa','#22d3ee','#fb923c'];
 let currentRange = 1;
 let rawData = [];
 let allData = [];
@@ -843,7 +843,7 @@ function renderUptime(by, names) {
   uptimeChartInstance = new Chart(document.getElementById('uptimeChart').getContext('2d'), {
     type:'line', data:{labels,datasets:ds},
     options: { ...chartDefaults,
-      plugins: { ...chartDefaults.plugins, legend:{display:true,position:'top',align:'end',labels:{color:'#52525b',boxWidth:6,boxHeight:6,padding:14,font:{size:10,family:"'Inter', sans-serif"},usePointStyle:true,pointStyle:'circle'}}, tooltip:{...chartDefaults.plugins.tooltip,mode:'index',intersect:false,callbacks:{label:c=>` ${c.dataset.label}  ${c.parsed.y}%`}} },
+      plugins: { ...chartDefaults.plugins, legend:{display:true,position:'top',align:'end',labels:{color:'#a1a1aa',boxWidth:6,boxHeight:6,padding:14,font:{size:10,family:"'Inter', sans-serif"},usePointStyle:true,pointStyle:'circle'}}, tooltip:{...chartDefaults.plugins.tooltip,mode:'index',intersect:false,callbacks:{label:c=>` ${c.dataset.label}  ${c.parsed.y}%`}} },
       scales: { ...chartDefaults.scales, y:{...chartDefaults.scales.y,min:0,max:100,ticks:{...chartDefaults.scales.y.ticks,callback:v=>v+'%'}} },
       interaction:{mode:'index',intersect:false}
     }
@@ -862,7 +862,7 @@ function renderLatency(by, names) {
   latencyChartInstance = new Chart(document.getElementById('latencyChart').getContext('2d'), {
     type:'line', data:{labels,datasets:ds},
     options: { ...chartDefaults,
-      plugins: { ...chartDefaults.plugins, legend:{display:true,position:'top',align:'end',labels:{color:'#52525b',boxWidth:6,boxHeight:6,padding:14,font:{size:10,family:"'Inter', sans-serif"},usePointStyle:true,pointStyle:'circle'}}, tooltip:{...chartDefaults.plugins.tooltip,mode:'index',intersect:false,callbacks:{label:c=>` ${c.dataset.label}  ${c.parsed.y.toFixed(1)}ms`}} },
+      plugins: { ...chartDefaults.plugins, legend:{display:true,position:'top',align:'end',labels:{color:'#a1a1aa',boxWidth:6,boxHeight:6,padding:14,font:{size:10,family:"'Inter', sans-serif"},usePointStyle:true,pointStyle:'circle'}}, tooltip:{...chartDefaults.plugins.tooltip,mode:'index',intersect:false,callbacks:{label:c=>` ${c.dataset.label}  ${c.parsed.y.toFixed(1)}ms`}} },
       scales: { ...chartDefaults.scales, y:{...chartDefaults.scales.y,min:0,ticks:{...chartDefaults.scales.y.ticks,callback:v=>v+'ms'}} },
       interaction:{mode:'index',intersect:false}
     }
